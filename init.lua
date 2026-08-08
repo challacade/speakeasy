@@ -23,7 +23,9 @@ Text.__index = Text
 speakeasy.Text = Text
 
 -- speakeasy.new(source, options)
--- options: font, width (wrap limit), speed, align, lineHeight, color, shadow, onGlyph
+-- options: font, width (wrap limit), speed, align, lineHeight, color, shadow,
+-- onGlyph, punctuationPauses (glyph -> pause level/factor, or false to disable),
+-- pauseFactors (pause level -> interval factor)
 function speakeasy.new(source, options)
     options = options or {}
 
@@ -41,6 +43,8 @@ function speakeasy.new(source, options)
 
     self.reveal = reveal.new({
         speed = options.speed,
+        punctuationPauses = options.punctuationPauses,
+        pauseFactors = options.pauseFactors,
         onGlyph = function(glyph, index)
             if self.onGlyph then self.onGlyph(glyph, index, self) end
         end,
