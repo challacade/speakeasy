@@ -4,6 +4,7 @@ local prefix = path == "init" and "" or (path .. ".")
 local layout = require(prefix .. "layout")
 local reveal = require(prefix .. "reveal")
 local painter = require(prefix .. "draw")
+local tween = require(prefix .. "tween")
 local unicode = require(prefix .. "unicode")
 
 local speakeasy = {
@@ -17,6 +18,7 @@ speakeasy.unicode = unicode
 speakeasy.layout = layout
 speakeasy.reveal = reveal
 speakeasy.draw = painter
+speakeasy.tween = tween
 
 local Text = {}
 Text.__index = Text
@@ -25,7 +27,9 @@ speakeasy.Text = Text
 -- speakeasy.new(source, options)
 -- options: font, width (wrap limit), speed, align, lineHeight, color, shadow,
 -- onGlyph, punctuationPauses (glyph -> pause level/factor, or false to disable),
--- pauseFactors (pause level -> interval factor)
+-- pauseFactors (pause level -> interval factor), glyphTween = false or
+-- {duration, rise (distance/false), grow (start scale/false),
+-- fade (start alpha/false), ease(progress)}
 function speakeasy.new(source, options)
     options = options or {}
 
@@ -40,12 +44,15 @@ function speakeasy.new(source, options)
     self.color = options.color
     self.shadow = options.shadow
     self.onGlyph = options.onGlyph
+    self.glyphTween = tween.resolve(options.glyphTween)
+    self.glyphAges = {}
 
     self.reveal = reveal.new({
         speed = options.speed,
         punctuationPauses = options.punctuationPauses,
         pauseFactors = options.pauseFactors,
         onGlyph = function(glyph, index)
+            self.glyphAges[index] = 0
             if self.onGlyph then self.onGlyph(glyph, index, self) end
         end,
     })
@@ -69,6 +76,7 @@ end
 
 function Text:setText(source)
     self.source = source or ""
+    self.glyphAges = {}
     self:refresh()
     self.reveal:reset()
     return self
@@ -106,6 +114,10 @@ function Text:getSpeed()
 end
 
 function Text:update(dt)
+    dt = dt or 0
+    for index = 1, self.reveal.visible do
+        self.glyphAges[index] = (self.glyphAges[index] or 0) + dt
+    end
     self.reveal:update(dt, self.result.glyphs)
     return self
 end
@@ -116,16 +128,21 @@ function Text:draw(x, y, options)
         font = self.font,
         color = options.color or self.color,
         shadow = options.shadow or self.shadow,
+        glyphTween = self.glyphTween,
+        glyphAges = self.glyphAges,
     })
     return self
 end
 
 function Text:skip()
     self.reveal:skip()
+    local duration = self.glyphTween and self.glyphTween.duration or 0
+    for index = 1, self.result.count do self.glyphAges[index] = duration end
     return self
 end
 
 function Text:restart()
+    self.glyphAges = {}
     self.reveal:reset()
     return self
 end
